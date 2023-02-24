@@ -1,0 +1,22 @@
+name: Update-Recurring-Events
+
+on:
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron: '0 0,12 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: "update-recurring"
+  cancel-in-progress: true
+
+jobs:
+  update-recurring:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout the latest code (shallow clone)
+      uses: actions/checkout@v3
+    - name: update
+      env:
+        NOTION_KEY: ${{ secrets.NOTION_KEY }}
+      run: .github/update_recurring_events.sh 
