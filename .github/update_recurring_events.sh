@@ -7,16 +7,28 @@ jq_base64() {
     echo "${1}" | base64 --decode | jq -r ${2}
 }
 
-freq_update() {
+get_next_date() {
+    local date="$1"
+    local freq="$2"
+    local update=""
+    # Keep the same timezone setting
+    IFS='T' read -ra date_array <<< "$date"
+    # 1 is Monday
+    weekday=$(date --date "${date_array[0]}" +'%u')
     if [[ "${1}" == "Daily" ]]; then
-        echo "+1 day"
+        update="+1 day"
+        # If it's friday, take the next monday
+        if [[ "${weekday}" == "5" ]]; then
+            update="+3 days"
+        fi
     elif [[ "${1}" == "Weekly" ]]; then
-        echo "+1 week"
+        update="+1 week"
     elif [[ "${1}" == "Bi-weekly" ]]; then
-        echo "+2 weeks"
+        update="+2 weeks"
     elif [[ "${1}" == "Monthly" ]]; then
-        echo "+4 weeks"
+        update="+4 weeks"
     fi
+    echo "$(date --date "${date_array[0]} ${update}" +'%Y-%m-%d')T${date_array[1]}"
 }
 
 checked_run() {
@@ -90,7 +102,7 @@ for row in $(echo $result | jq -r '.results | .[] | @base64'); do
     update=$(freq_update ${freq})
     # Keep the same timezone setting
     IFS='T' read -ra date_array <<< "$start"
-    new_start="$(date --date "${date_array[0]} ${update}" +'%Y-%m-%d')T${date_array[1]}"
+    new_start="$(get_next_date "${start}" "${freq}")"
     new_end="${end}"
     if [[ ${end} != "null" ]]; then
         # Notion can only filter by the start date
@@ -100,8 +112,7 @@ for row in $(echo $result | jq -r '.results | .[] | @base64'); do
             # ending date is not passed yet
             continue
         fi
-        IFS='T' read -ra date_array <<< "$end"
-        new_end="$(date --date "${date_array[0]} ${update}" +'%Y-%m-%d')T${date_array[1]}"
+        new_end="$(get_next_date "${end}" "${freq}")"
     fi
     update_page "${id}" "${new_start}" "${new_end}"
 done
